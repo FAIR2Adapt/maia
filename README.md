@@ -8,6 +8,7 @@
 
    ![Open Skosmos](images/containers_ready.png)
 
-3. If you make changes to the vocabulary, press **F1** and run **Codespaces: Rebuild Container** to restart services with the new changes.
-4. If the container doesn’t start, press **F1** and run **Codespaces: View creation log** to see startup logs.
-5. When you’re done, delete the Codespace (free plan includes ~60 hours/month).
+3. Open the link in a browser, then click on **English** to view the taxonomy.
+4. If you make changes to the vocabulary, press **F1** and run **Codespaces: Rebuild Container** to restart services with the new changes.
+5. If the container doesn’t start, press **F1** and run **Codespaces: View creation log** to see startup logs.
+6. When you’re done, delete the Codespace (free plan includes ~60 hours/month).
