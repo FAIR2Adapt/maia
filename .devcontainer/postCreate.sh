@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euxo pipefail
 
+# Remove ready signal
+rm -f /workspaces/.postcreate_done
+
 # Clone the Skosmos source
 if [ ! -d "skosmos-src" ]; then
   git clone --depth 1 https://github.com/NatLibFi/Skosmos.git skosmos-src
@@ -26,6 +29,14 @@ cat <<'EOF' >> skosmos-src/dockerfiles/config/config-docker-compose.ttl
   skosmos:showTopConcepts true ;
   skosmos:fullAlphabeticalIndex true .
 EOF
+
+# Change the baseHref 
+BASEHREF="https://${CODESPACE_NAME//_/-}-9090.app.github.dev/"
+
+sed -i.bak \
+  -e 's|^[[:space:]]*# *skosmos:baseHref "http://localhost/Skosmos/" ;|    skosmos:baseHref "'"${BASEHREF}"'" ;|' \
+  skosmos-src/dockerfiles/config/config-docker-compose.ttl
+
 
 # Sometimes Docker is not ready when we want to use it, so we want to make sure it is ready
 ensure_docker() {
@@ -69,3 +80,5 @@ done
 # Load TTL into the graph
 curl --retry 6 --retry-delay 2 --retry-connrefused -sSf -X PUT -H "Content-Type: text/turtle;charset=utf-8" --data-binary @concepts.ttl "http://localhost:9030/skosmos/data?graph=http://example.org/graph/dev"
 
+# Signal that post-create finished
+touch /workspaces/.postcreate_done
