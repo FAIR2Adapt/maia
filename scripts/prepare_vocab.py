@@ -16,11 +16,33 @@ Usage:
 import sys
 
 from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import DCTERMS, RDF, SKOS
+from rdflib.namespace import DCTERMS, RDF, SKOS, XSD
 
 # Licence applied to the concept scheme when it has none. Change here (or pass a
 # third CLI arg) if the official licence differs.
 DEFAULT_LICENSE = URIRef("https://creativecommons.org/licenses/by/4.0/")
+
+# Language assumed for literals that the hub exports without a language tag.
+# SkoHub renders these fields through a per-language LanguageMap (i18n), so an
+# untagged literal never matches the UI language ("en") and is silently dropped
+# — most visibly skos:editorialNote, which the hub exports entirely untagged
+# (e.g. "source:IPCC Glossary AR6"). Tagging them as English makes them render.
+DEFAULT_LANG = "en"
+
+# Text predicates SkoHub renders via i18n(language)(...). Any untagged plain
+# literal on these is retagged with DEFAULT_LANG so the field shows up.
+LOCALISED_TEXT = [
+    SKOS.prefLabel,
+    SKOS.altLabel,
+    SKOS.hiddenLabel,
+    SKOS.definition,
+    SKOS.scopeNote,
+    SKOS.editorialNote,
+    SKOS.historyNote,
+    SKOS.changeNote,
+    SKOS.note,
+    SKOS.example,
+]
 
 # The vocabulary was renamed from "MAIA taxonomy" to "Climate Connectivity
 # Taxonomy". Until the hub itself is updated, rewrite any scheme title still
@@ -107,6 +129,27 @@ def normalise_hierarchy(g: Graph) -> tuple[int, int]:
     return demoted, promoted
 
 
+def tag_untagged_text(g: Graph) -> int:
+    """Add DEFAULT_LANG to untagged plain literals on localised-text predicates.
+
+    SkoHub looks each value up by language; a literal with no language tag is
+    invisible in the "en" UI. We only touch plain strings (no language, no
+    datatype other than xsd:string) so typed values are left alone.
+    """
+    tagged = 0
+    for predicate in LOCALISED_TEXT:
+        for subject, _, obj in list(g.triples((None, predicate, None))):
+            if (
+                isinstance(obj, Literal)
+                and not obj.language
+                and obj.datatype in (None, XSD.string)
+            ):
+                g.remove((subject, predicate, obj))
+                g.add((subject, predicate, Literal(str(obj), lang=DEFAULT_LANG)))
+                tagged += 1
+    return tagged
+
+
 def dedupe_language_maps(g: Graph) -> int:
     """For single-valued-per-language predicates, keep one value per language."""
     removed = 0
@@ -138,6 +181,7 @@ def main() -> None:
     renamed = rename_scheme(g)
     licenses = add_license(g)
     demoted, promoted = normalise_hierarchy(g)
+    tagged = tag_untagged_text(g)
     deduped = dedupe_language_maps(g)
 
     g.serialize(destination=dst, format="turtle")
@@ -147,6 +191,7 @@ def main() -> None:
     print(f"  licence added to {licenses} scheme(s)")
     print(f"  hierarchy: demoted {demoted} child concept(s) from top level, "
           f"promoted {promoted} root(s)")
+    print(f"  tagged {tagged} untagged literal(s) as '{DEFAULT_LANG}'")
     print(f"  de-duplicated {deduped} same-language value(s)")
     print(f"wrote {len(g)} triples to {dst}")
 
