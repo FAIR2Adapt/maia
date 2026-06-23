@@ -11,6 +11,7 @@ searchableAttributes:
   - "example"
   - "definition"
   - "scopeNote"
+  - "editorialNote"
 ui:
   title: "Climate Connectivity Taxonomy" # Title is mandatory
   logo: "skohub-signet-color.svg" # Path
